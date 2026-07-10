@@ -1,16 +1,8 @@
-# ML RI Prediction
+# Machine learning Prediction of Rapid Intensification
 
 This repository contains machine-learning workflows for tropical cyclone rapid intensification (RI) prediction using SHIPS/HWRF-style environmental predictors. The project includes training datasets, individual storm case files, pre-trained Keras models, exploratory notebooks, and scripts used to evaluate Hurricane Otis (2023), Hurricane Patricia (2015), and 2023 real-time forecast cases.
 
-## Description
-
-The central research question is how environmental predictors at the RI onset time compare with predictors along the future 24-hour tropical cyclone track for RI classification. The current workflow treats RI as a binary classification problem and trains or evaluates three neural-network-style classifiers:
-
-- dense logistic-style neural network;
-- simple recurrent neural network (RNN);
-- gated recurrent unit (GRU).
-
-The code uses SHIPS diagnostic predictors from HWRF/HAFS-style forecast guidance. The main 24-hour dataset includes predictors at 00, 06, 12, 18, and 24 h lead times. The Otis and Patricia case files are used to compare a failed RI forecast case against a better-predicted RI case and to test sensitivity to SST, shear, and storm translation speed.
+The central research question is how environmental predictors at the RI onset time compare with predictors along the future 24-hour tropical cyclone track for RI classification. The current workflow treats RI as a binary classification problem and trains or evaluates three neural-network-style classifiers including 1) dense logistic-style neural network, 2) simple recurrent neural network (RNN, 3) gated recurrent unit (GRU). The code uses SHIPS diagnostic predictors from HWRF/HAFS-style forecast guidance. The main 24-hour dataset includes predictors at 00, 06, 12, 18, and 24 h lead times. The Otis and Patricia case files are used to compare a failed RI forecast case against a better-predicted RI case and to test sensitivity to SST, shear, and storm translation speed.
 
 ## How To Run
 
@@ -73,8 +65,7 @@ RI-prediction/
 ├── LICENSE
 ├── pyproject.toml
 ├── requirements.txt
-├── archive/
-│   └── backup/
+├── backup/
 ├── data/
 │   ├── README.md
 │   ├── cases/
@@ -82,7 +73,7 @@ RI-prediction/
 │   └── training/
 ├── docs/
 │   └── references/
-│       ├── AMS-36-Hurricane Confrence-poster-LowryKieu-Apr18.pdf
+│       ├── LowryKieu-Apr18.pdf
 │       └── README.md
 ├── jobs/
 │   ├── RI_getSHIP.sh
@@ -144,4 +135,4 @@ Related references listed in the poster:
 
 Chanh Kieu  
 Department of Earth and Atmospheric Sciences, Indiana University  
-Email: ckieu@indiana.edu
+Email: ckieu@iu.edu
