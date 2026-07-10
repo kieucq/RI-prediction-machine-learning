@@ -1,0 +1,25 @@
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Local environments
+.env
+.venv/
+venv/
+
+# Generated experiment outputs
+results/*
+!results/README.md
+*.log
+log*.txt
+out_*.txt
+
+# Large or local model products created during retraining
+models/checkpoints/
+models/generated/
+
+# OS/editor files
+.DS_Store
+.vscode/
+backup

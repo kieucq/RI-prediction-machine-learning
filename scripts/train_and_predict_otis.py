@@ -12,7 +12,7 @@
 #       except that the testing step is splitted and no visualization of the training can 
 #       be seen.
 #
-#       To add new DL models, edit the module file RI_deep_learning_libmodel.py
+#       To add new DL models, edit the module file src/ri_prediction/models.py
 #
 # HIST: - 10, Mar 2023: created by CK
 #       - 02, Nov 2023: CK updated the input data for consistency of header information 
@@ -33,8 +33,19 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import tensorflow as tf
 import sys
-import RI_deep_learning_libmodel as RImodel
-import RI_deep_learning_libutils as RIutils
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / "data"
+TRAINING_DATA_DIR = DATA_DIR / "training"
+CASE_DATA_DIR = DATA_DIR / "cases"
+MODEL_DIR = PROJECT_ROOT / "models" / "pretrained"
+RESULTS_DIR = PROJECT_ROOT / "results"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+from ri_prediction import models as RImodel
+from ri_prediction import utils as RIutils
 #
 # reading all input data, and replace/remove bad data. Note that 
 # - this data set must contain the last column "class" indicating RI (1) or non-RI (0). 
@@ -51,7 +62,7 @@ flag_input_future_time="24h"    # SHIP predictors input option (00h or 24h)
 metric_threshold = 0.7          # binary accuracy threshold for training (0-1)
 split_ratio = 0.05              # slit ratio between training/validation (0-1)
 var_to_remove = ['OHC']         # list of vars to be removed. See the complete list above 
-infile='/N/u/ckieu/BigRed200/model/RI-prediction/SHIP_allbasin_2011_2022_Version4.csv'
+infile = TRAINING_DATA_DIR / "SHIP_allbasin_2011_2022_Version4.csv"
 df = RIutils.filterdata(infile,flag_input_future_time,var_to_remove)
 if debug == 1: 
     print("The length of data frame df variable is ",len(df))
@@ -80,8 +91,8 @@ if debug == 1:
 # Build a logistic model with options model_logistics32 or model_logistics64
 #
 model_logistics = RImodel.model_logistics32(metric_threshold=metric_threshold)
-bestmodel_name = "RI_model_logistics_"+flag_input_future_time+".keras"
-callbacks = [keras.callbacks.ModelCheckpoint(bestmodel_name,save_best_only=True)]
+bestmodel_name = MODEL_DIR / ("RI_model_logistics_" + flag_input_future_time + ".keras")
+callbacks = [keras.callbacks.ModelCheckpoint(str(bestmodel_name), save_best_only=True)]
 history_logistics = model_logistics.fit(x2_train,y2_train,epochs=100,batch_size=16,
                                        validation_data=(x2_val,y2_val),callbacks=callbacks,verbose=debug)
 #
@@ -123,15 +134,15 @@ if debug == 1:
 # Build a RNN model with options model_RNN16 or model_RNN32
 #
 model_RNN = RImodel.model_RNN32(sequence_length,num_predictors,metric_threshold=metric_threshold)
-bestmodel_name = "RI_model_RNN_"+flag_input_future_time+".keras"
-callbacks = [keras.callbacks.ModelCheckpoint(bestmodel_name,save_best_only=True)]
+bestmodel_name = MODEL_DIR / ("RI_model_RNN_" + flag_input_future_time + ".keras")
+callbacks = [keras.callbacks.ModelCheckpoint(str(bestmodel_name), save_best_only=True)]
 history_RNN = model_RNN.fit(x3_train, y2_train, epochs=100, batch_size=64, 
                             validation_data=(x3_val, y2_val), callbacks=callbacks,verbose=debug)
 #
 # Check F1 score now for the RNN model
 #
 if debug == 1:
-    model_best = keras.models.load_model(bestmodel_name)
+    model_best = keras.models.load_model(str(bestmodel_name))
     print(f"The best trained RNN prediction error is: {model_best.evaluate(test_dataset,y1_test,verbose=debug)[1]:.3f}")
     print(f"The last trained RNN prediction error is: {model_RNN.evaluate(test_dataset,y1_test,verbose=debug)[1]:.3f}")
     y_prediction = model_RNN.predict(test_dataset)
@@ -145,15 +156,15 @@ if visualization == "yes":
 # Build GRU model with options model_GRU16 or model_GRU32
 #
 model_GRU = RImodel.model_GRU32(sequence_length,num_predictors,metric_threshold=metric_threshold)
-bestmodel_name = "RI_model_GRU_"+flag_input_future_time+".keras"
-callbacks = [keras.callbacks.ModelCheckpoint(bestmodel_name,save_best_only=True)]
+bestmodel_name = MODEL_DIR / ("RI_model_GRU_" + flag_input_future_time + ".keras")
+callbacks = [keras.callbacks.ModelCheckpoint(str(bestmodel_name), save_best_only=True)]
 history_GRU = model_GRU.fit(x3_train, y2_train, epochs=100, batch_size=64, 
                              validation_data=(x3_val, y2_val), callbacks=callbacks,verbose=debug)
 #
 # Check F1 score now for the GRU model
 #
 if debug == 1:
-    model_best = keras.models.load_model(bestmodel_name)
+    model_best = keras.models.load_model(str(bestmodel_name))
     print(f"The best trained GRU prediction error is: {model_best.evaluate(test_dataset,y1_test,verbose=debug)[1]:.3f}")
     print(f"The last trained GRU prediction error is: {model_GRU.evaluate(test_dataset,y1_test,verbose=debug)[1]:.3f}")
     y_prediction = model_GRU.predict(test_dataset)
@@ -163,4 +174,31 @@ if debug == 1:
 #
 if visualization == "yes":
     RIutils.visualization_GRU(history_GRU)
+#
+# reading a single case of a TC now for testing
+#
+testfile = CASE_DATA_DIR / "OTIS18E_master.csv"
+df = RIutils.filterdata(testfile,flag_input_future_time,var_to_remove)
+x_fcst = np.array(df.drop(['class'],axis=1))
+y_true = np.array(df['class'])
+x_tlag = x_fcst.reshape((-1,sequence_length,num_predictors))
+if debug == 1:
+    print('External input SHIP data length is: ',len(x_fcst))
+    print('RI record for this storm is: ',y_true)
+    print('Reshape for RNN and GRU input is: ',x_tlag.shape)
+    print(x_fcst[0].astype('int'))
+#
+# Make prediction of RI for the single case (all cycles)
+#
+model_RNN = keras.models.load_model(str(MODEL_DIR / ("RI_model_RNN_" + flag_input_future_time + ".keras")))
+model_logistics = keras.models.load_model(str(MODEL_DIR / ("RI_model_logistics_" + flag_input_future_time + ".keras")))
+model_GRU = keras.models.load_model(str(MODEL_DIR / ("RI_model_GRU_" + flag_input_future_time + ".keras")))
 
+fcst_logistics = model_logistics.predict(x_fcst,verbose=debug)
+fcst_GRU = model_GRU.predict(x_tlag,verbose=debug)
+fcst_RNN = model_RNN.predict(x_tlag,verbose=debug)
+for i in range(len(x_fcst)):
+   print(f"Logistic, RNN, GRU probability predictions: {float(fcst_logistics[i]):.3f},{float(fcst_RNN[i]):.3f},{float(fcst_GRU[i]):.3f}")
+print("F1, Recall, Precision for logistics model with "+flag_input_future_time+" data are:",RIutils.F1_score(y_true,fcst_logistics,1,0.1))
+print("F1, Recall, Precision for RNN model with "+flag_input_future_time+" data are:",RIutils.F1_score(y_true,fcst_RNN,1,0.1))
+print("F1, Recall, Precision for GRU model with "+flag_input_future_time+" data are:",RIutils.F1_score(y_true,fcst_GRU,1,0.1))  

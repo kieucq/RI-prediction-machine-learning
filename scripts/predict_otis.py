@@ -12,7 +12,7 @@
 #       except that the testing step is splitted and no visualization of the training can
 #       be seen.
 #
-#       To add new DL models, edit the module file RI_deep_learning_libmodel.py
+#       To add new DL models, edit the module file src/ri_prediction/models.py
 #
 # HIST: - 10, Mar 2023: created by CK
 #       - 02, Nov 2023: CK updated the input data for consistency of header information
@@ -33,8 +33,19 @@ from tensorflow import keras
 from tensorflow.keras import layers
 import tensorflow as tf
 import sys
-import RI_deep_learning_libmodel as RImodel
-import RI_deep_learning_libutils as RIutils
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / "data"
+TRAINING_DATA_DIR = DATA_DIR / "training"
+CASE_DATA_DIR = DATA_DIR / "cases"
+MODEL_DIR = PROJECT_ROOT / "models" / "pretrained"
+RESULTS_DIR = PROJECT_ROOT / "results"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+from ri_prediction import models as RImodel
+from ri_prediction import utils as RIutils
 #
 # set up initial parameters
 #
@@ -44,7 +55,7 @@ flag_input_future_time="24h"    # SHIP predictors input option (00h or 24h)
 metric_threshold = 0.7          # binary accuracy threshold for training (0-1)
 split_ratio = 0.05              # slit ratio between training/validation (0-1)
 var_to_remove = ['OHC']         # list of vars to be removed. See the complete list above 
-testfile="/N/u/ckieu/BigRed200/model/RI-prediction/OTIS18E_master.csv"
+testfile = CASE_DATA_DIR / "OTIS18E_master.csv"
 if flag_input_future_time == "24h":
     sequence_length = 5
 elif flag_input_future_time == "12h":
@@ -67,9 +78,9 @@ if debug == 1:
 #
 # Make prediction of RI for the single case (all cycles)
 #
-model_RNN = keras.models.load_model("RI_model_RNN_"+flag_input_future_time+".keras")
-model_logistics = keras.models.load_model("RI_model_logistics_"+flag_input_future_time+".keras")
-model_GRU = keras.models.load_model("RI_model_GRU_"+flag_input_future_time+".keras")
+model_RNN = keras.models.load_model(str(MODEL_DIR / ("RI_model_RNN_" + flag_input_future_time + ".keras")))
+model_logistics = keras.models.load_model(str(MODEL_DIR / ("RI_model_logistics_" + flag_input_future_time + ".keras")))
+model_GRU = keras.models.load_model(str(MODEL_DIR / ("RI_model_GRU_" + flag_input_future_time + ".keras")))
 
 fcst_logistics = model_logistics.predict(x_fcst,verbose=debug)
 fcst_GRU = model_GRU.predict(x_tlag,verbose=debug)

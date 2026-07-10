@@ -1,3 +1,11 @@
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = PROJECT_ROOT / "data"
+TRAINING_DATA_DIR = DATA_DIR / "training"
+CASE_DATA_DIR = DATA_DIR / "cases"
+MODEL_DIR = PROJECT_ROOT / "models" / "pretrained"
+
 import pandas as pd
 import math
 import numpy as np
@@ -9,6 +17,7 @@ import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers
 import tensorflow as tf
+#import tensorflow_addons as tfa
 #
 # build an F1-score function for later use
 #
@@ -43,43 +52,28 @@ def F1_score(y_true,y_prediction,true_class,true_threshold):
         Precision = TP/float(TP+FP)
     return F1, Recall, Precision
 #
-# reading all input data, and replace/remove bad data. Note that this data set
+# reading all input data, and replace/remove bad data. Note that this data set 
 # must contain the last column "class" that indicates RI (1) or non-RI (0). Note that
 # option flag_input_more_time denotes a single time slice, or mutiple time slices from
 # SHIP forecasts.
 #
-flag_input_future_time="00h"       # 00h, 12h, or 24h
+flag_input_future_time="24h"                                              # 00h, 12h, or 24h
 good_input = "yes"
-df = pd.read_csv('/N/u/ckieu/Carbonate/python/SHIP_allbasin_2011_2022_Version3(+24hr).csv')
-if flag_input_future_time == "00h":
-    df.drop(['Storm','OHC','OHC(+6h)','OHC(+12h)','OHC(+18h)','OHC(+24h)',
-             'lat(+6h)','lat(+12h)','lat(+18h)','lat(+24h)',
-             'lon(+6h)','lon(+12h)','lon(+18h)','lon(+24h)',
-             'MaxWind(+6h)','MaxWind(+12h)','MaxWind(+18h)','MaxWind(+24h)',
-             'RMW(+6h)','RMW(+12h)','RMW(+18h)','RMW(+24h)',
-             'MIN_SLP(+6hr)','MIN_SLP(+12hr)','MIN_SLP(+18h)','MIN_SLP(+24h)',
-             'SHR_MAG(+6h)','SHR_MAG(+12h)','SHR_MAG(+18h)','SHR_MAG(+24h)',
-             'SHR_HDG(+6h)','SHR_HDG(+12h)','SHR_HDG(+18h)','SHR_HDG(+24h)',
-             'STM_SPD(+6h)','STM_SPD(+12h)','STM_SPD(+18h)','STM_SPD(+24h)',
-             'STM_HDG(+6h)','STM_HDG(+12h)','STM_HDG(+18h)','STM_HDG(+24h)',
-             'SST(+6h)','SST(+12h)','SST(+18h)','SST(+24h)',
-             'TPW(+6h)','TPW(+12h)','TPW(+18h)','TPW(+24h)',
-             'LAND(+6h)','LAND(+12h)','LAND(+18h)','LAND(+24h)',
-             '850TANG(+6h)','850TANG(+12h)','850TANG(+18h)','850TANG(+24h)',
-             '850VORT(+6h)','850VORT(+12h)','850VORT(+18h)','850VORT(+24h)',
-             '200DVRG(+6h)','200DVRG(+12h)','200DVRG(+18h)','200DVRG(+24h)'], axis=1, inplace=True)
+if flag_input_future_time == "24h":    
+    df = pd.read_csv(TRAINING_DATA_DIR / "SHIP_allbasin_2011_2022_Version3(+24hr).csv")       # Future up to 24h
+    df.drop(['Storm','OHC','OHC(+6h)','OHC(+12h)',
+             'OHC(+18h)','OHC(+24h)'], axis=1, inplace=True)              # axis = 0/1 means row/col drop    
 else:
-    print("flag_input_future_time cannot be anything other than 00h... Stop")
+    print("flag_input_future_time cannot be anything other 24h... Stop")
     good_input = "no"
-
-if good_input == "yes":
+    
+if good_input == "yes":   
     df.replace('?',-99999, inplace=True)
     print(df.head(3))
     x = np.array(df.drop(['class'],axis=1)).astype("float32")
     y = np.array(df['class']).astype("float32")
     print(x[0],y[0])
-    print("Data length of data frame df variable is ",len(df))
-    
+    print("The length of data frame df variable is ",len(df))
 #
 # produce a simple reference forecast by randomly sampling the y array and check how many 
 # of the random_label matches the y array. That is, if y[i] = random_label_copy[y], then
@@ -116,7 +110,7 @@ model_logistics = keras.Sequential([layers.Dense(32, activation = "relu"),
 # Two options for metrics here: accuracy or binary_accuracy
 #
 #model.compile(optimizer="rmsprop",loss="binary_crossentropy",metrics=["accuracy"])
-callbacks = [keras.callbacks.ModelCheckpoint("RI_model_logistics_00h.keras",save_best_only=True)]
+callbacks = [keras.callbacks.ModelCheckpoint(str(MODEL_DIR / "RI_model_logistics_24h.keras"),save_best_only=True)]
 model_logistics.compile(optimizer="rmsprop",loss="binary_crossentropy",
                         metrics=[tf.keras.metrics.BinaryAccuracy(name="binary_accuracy", dtype=None, threshold=0.8)])
 history_logistics = model_logistics.fit(x2_train,y2_train,epochs=50,batch_size=16,validation_data=(x2_val,y2_val),
@@ -127,6 +121,8 @@ history_logistics = model_logistics.fit(x2_train,y2_train,epochs=50,batch_size=1
 results = model_logistics.evaluate(x1_test,y1_test)
 print("Evalution results (loss,accuracy) for the test data is ",results)
 single_fcst = model_logistics.predict(x1_test)
+#for i in range(len(single_fcst)):
+#    print(y1_test[i]," <---> RI Propbability: ",f"{float(single_fcst[i]):.5f}")
 print("F1, Recall, Precision for logistic model are:",F1_score(y1_test,single_fcst,1,0.10))  
 #
 # plotting the performance of the logistics regression
@@ -185,13 +181,13 @@ x = layers.SimpleRNN(16, return_sequences=True)(x)
 outputs = layers.SimpleRNN(1,activation = "sigmoid")(x)
 model_RNN = keras.Model(inputs, outputs)
 
-callbacks = [keras.callbacks.ModelCheckpoint("RI_model_RNN_00h.keras",save_best_only=True)]
+callbacks = [keras.callbacks.ModelCheckpoint(str(MODEL_DIR / "RI_model_RNN_24h.keras"),save_best_only=True)]
 model_RNN.compile(optimizer="rmsprop",loss="mse",
                   metrics=[tf.keras.metrics.BinaryAccuracy(name="binary_accuracy", dtype=None, threshold=0.2)])
 history_RNN = model_RNN.fit(x3_train, y2_train, epochs=50, batch_size=64, 
                              validation_data=(x3_val, y2_val), callbacks=callbacks)
 
-model_best = keras.models.load_model("RI_model_RNN_00h.keras")
+model_best = keras.models.load_model(str(MODEL_DIR / "RI_model_RNN_24h.keras"))
 print(f"The best trained RNN prediction error is: {model_best.evaluate(test_dataset,y1_test)[1]:.3f}")
 print(f"The last trained RNN prediction error is: {model_RNN.evaluate(test_dataset,y1_test)[1]:.3f}")
 #
@@ -233,13 +229,13 @@ x = layers.GRU(16, return_sequences=True)(x)
 outputs = layers.GRU(1,activation = "sigmoid")(x)
 model_GRU = keras.Model(inputs, outputs)
 
-callbacks = [keras.callbacks.ModelCheckpoint("RI_model_GRU_00h.keras",save_best_only=True)]
+callbacks = [keras.callbacks.ModelCheckpoint(str(MODEL_DIR / "RI_model_GRU_24h.keras"),save_best_only=True)]
 model_GRU.compile(optimizer="rmsprop",loss="mse",
                   metrics=[tf.keras.metrics.BinaryAccuracy(name="binary_accuracy", dtype=None, threshold=0.2)])
 history_GRU = model_GRU.fit(x3_train, y2_train, epochs=50, batch_size=64, 
                              validation_data=(x3_val, y2_val), callbacks=callbacks)
 
-model_best = keras.models.load_model("RI_model_GRU_00h.keras")
+model_best = keras.models.load_model(str(MODEL_DIR / "RI_model_GRU_24h.keras"))
 print(f"The best trained GRU prediction error is: {model_best.evaluate(test_dataset,y1_test)[1]:.3f}")
 print(f"The last trained GRU prediction error is: {model_GRU.evaluate(test_dataset,y1_test)[1]:.3f}")
 #
@@ -273,27 +269,25 @@ plt.show()
 #
 # loading three different pre-trained models using all 24-h input SHIP data
 #
-#df = pd.read_csv('/N/u/ckieu/Carbonate/python/DOKSURI05W_Master.csv')
-df = pd.read_csv('/N/u/ckieu/Carbonate/python/CALVIN03E_Master.csv')
+#df = pd.read_csv(CASE_DATA_DIR / "DOKSURI05W_Master.csv")
+df = pd.read_csv(CASE_DATA_DIR / "CALVIN03E_Master.csv")
 df.drop(['Time','Basin','OHC','OHC(+6h)','OHC(+12h)','OHC(+18h)','OHC(+24h)'], axis=1, inplace=True)
 df.replace('?',-99999, inplace=True)
 x_fcst = np.array(df.drop(['Storm','class'],axis=1))
 y_true = np.array(df['class'])
+x_tlag = x_fcst.reshape((-1,sequence_length,num_predictors))
 print('External input SHIP data length is: ',len(x_fcst))
+#print(x_fcst[0])
 print(y_true)
-x_0d = np.array(df[['lat','lon','MaxWind','RMW','MIN_SLP','SHR_MAG','SHR_HDG','STM_SPD','STM_HDG',
-                   'SST','TPW','LAND','850TANG','850VORT','200DVRG']])
-x_0d_extent = np.expand_dims(x_0d, axis=1)
-print(x_0d.shape,x_0d_extent.shape)
-model_RNN_0d = keras.models.load_model("RI_model_RNN_00h.keras")
-model_logistics_0d = keras.models.load_model("RI_model_logistics_00h.keras")
-model_GRU_0d = keras.models.load_model("RI_model_GRU_00h.keras")
-fcst_logistics_0d = model_logistics_0d.predict(x_0d)
-fcst_GRU_0d = model_GRU_0d.predict(x_0d_extent)
-fcst_RNN_0d = model_RNN_0d.predict(x_0d_extent)
+model_RNN_1d = keras.models.load_model(str(MODEL_DIR / "RI_model_RNN_24h.keras"))
+model_logistics_1d = keras.models.load_model(str(MODEL_DIR / "RI_model_logistics_24h.keras"))
+model_GRU_1d = keras.models.load_model(str(MODEL_DIR / "RI_model_GRU_24h.keras"))
+fcst_logistics_1d = model_logistics_1d.predict(x_fcst)
+fcst_GRU_1d = model_GRU_1d.predict(x_tlag)
+fcst_RNN_1d = model_RNN_1d.predict(x_tlag)
 for i in range(len(x_fcst)):
-    print(f"Logistic, RNN, GRU probability predictions 00h: {float(fcst_logistics_0d[i]):.3f},{float(fcst_RNN_0d[i]):.3f},{float(fcst_GRU_0d[i]):.3f}")
-print("F1, Recall, Precision for logistics model are:",F1_score(y_true,fcst_logistics_0d,1,0.3))    
-print("F1, Recall, Precision for RNN model are:",F1_score(y_true,fcst_RNN_0d,1,0.3))    
-print("F1, Recall, Precision for GRU model are:",F1_score(y_true,fcst_GRU_0d,1,0.3))    
+    print(f"Logistic, RNN, GRU probability predictions: {float(fcst_logistics_1d[i]):.3f},{float(fcst_RNN_1d[i]):.3f},{float(fcst_GRU_1d[i]):.3f}")
+print("F1, Recall, Precision for logistics model are:",F1_score(y_true,fcst_logistics_1d,1,0.3))    
+print("F1, Recall, Precision for RNN model are:",F1_score(y_true,fcst_RNN_1d,1,0.3))    
+print("F1, Recall, Precision for GRU model are:",F1_score(y_true,fcst_GRU_1d,1,0.3))    
 

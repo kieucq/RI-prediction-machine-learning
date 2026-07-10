@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ri-prediction"
+version = "0.1.0"
+description = "Machine-learning workflows for tropical cyclone rapid intensification prediction from SHIPS/HWRF predictors."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "tensorflow",
+]
+
+[project.optional-dependencies]
+notebooks = ["jupyter", "ipython", "seaborn"]
+ship = ["requests", "wget"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

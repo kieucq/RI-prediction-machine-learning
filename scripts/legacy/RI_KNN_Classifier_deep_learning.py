@@ -1,3 +1,11 @@
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = PROJECT_ROOT / "data"
+TRAINING_DATA_DIR = DATA_DIR / "training"
+CASE_DATA_DIR = DATA_DIR / "cases"
+MODEL_DIR = PROJECT_ROOT / "models" / "pretrained"
+
 import pandas as pd
 import math
 import numpy as np
@@ -7,7 +15,7 @@ from sklearn import preprocessing, svm, neighbors
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('MajorAtlHurricaneMaster2016-2019.csv')
+df = pd.read_csv(TRAINING_DATA_DIR / "SHIP_AtlanticMajorHurricane2016-2019.csv")
 df.replace('?',-99999, inplace=True)
 df.drop(['OHC'], axis=1, inplace=True)
 print(df.head(10))
